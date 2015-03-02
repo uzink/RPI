@@ -1,0 +1,202 @@
+Single node
+
+Configure Network
+
+Edit /etc/network/interfaces
+
+iface eth0 inet static
+address 192.168.0.110
+netmask 255.255.255.0
+gateway: 192.168.0.1
+
+Edit /etc/resolv.conf and ensure your namesservers (DNS) are configured properly.
+
+Restart the PI.
+
+Check that Java is installed
+
+java -version  #should be at least version "1.8.0"
+
+Prepare Hadoop User Account and Group
+
+sudo addgroup hadoop
+sudo adduser --ingroup hadoop hduser
+sudo adduser hduser sudo
+
+Configure SSH
+
+Create SSH RSA pair keys with blank password in order for hadoop nodes to be able to talk with each other without prompting for password.
+
+su hduser
+mkdir ~/.ssh
+ssh-keygen -t rsa -P "" #hit enter
+cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys
+
+Verify that hduser can login to SSH
+
+su hduser
+ssh localhost
+
+Go back to previous shell 
+
+su pi 
+
+Install Hadoop
+
+Download and install
+
+cd ~/
+wget http://apache.mirrors.spacedump.net/hadoop/core/hadoop-1.2.1/hadoop-1.2.1.tar.gz
+sudo mkdir /opt
+sudo tar -xvzf hadoop-1.2.1.tar.gz -C /opt/
+cd /opt
+sudo mv hadoop-1.2.1 hadoop
+sudo chown -R hduser:hadoop hadoop
+
+Configure Environment Variables
+
+This configuration assumes that you are using the pre-installed version of Java in 2014-09-09-wheezy-raspbian.img.
+
+Add hadoop to environment variables by adding the following lines TO THE END OF /etc/bash.bashrc:
+
+export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
+export HADOOP_INSTALL=/opt/hadoop
+export PATH=$PATH:$HADOOP_INSTALL/bin
+
+Exit and reopen hduser shell to verify hadoop executable is accessible outside /opt/hadoop/bin folder:
+
+exit
+su hduser
+hadoop version
+
+hduser@node1 /home/hduser $ hadoop version
+Hadoop 1.2.1
+Subversion https://svn.apache.org/repos/asf/hadoop/common/branches/branch-1.2 -r 1503152
+Compiled by mattf on Mon Jul 22 15:23:09 PDT 2013
+From source with checksum 6923c86528809c4e7e6f493b6b413a9a
+This command was run using /opt/hadoop/hadoop-core-1.2.1.jar
+
+Configure Hadoop environment variables
+
+Edit /opt/hadoop/conf/hadoop-env.sh
+
+uncomment and change the following lines:
+
+# The java implementation to use. Required.
+export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
+
+# The maximum amount of heap to use, in MB. Default is 1000.
+export HADOOP_HEAPSIZE=250
+
+# Command specific options appended to HADOOP_OPTS when specified
+export HADOOP_DATANODE_OPTS="-Dcom.sun.management.jmxremote $HADOOP_DATANODE_OPTSi -client"
+
+Note: If you run SSH on a different port than 22 then you need to change the following parameter:
+
+# Extra ssh options. Empty by default.
+# export HADOOP_SSH_OPTS="-o ConnectTimeout=1 -o SendEnv=HADOOP_CONF_DIR"
+export HADOOP_SSH_OPTS="-p <YOUR_PORT>"
+
+Configure Hadoop
+
+Edit /opt/hadoop/conf/core-site.xml
+
+<configuration>
+  <property>
+    <name>hadoop.tmp.dir</name>
+    <value>/hdfs/tmp</value>
+  </property>
+  <property>
+    <name>fs.default.name</name>
+    <value>hdfs://localhost:54310</value>
+  </property>
+</configuration>
+
+mapred-site.xml
+
+<configuration>
+  <property>
+    <name>mapred.job.tracker</name>
+    <value>localhost:54311</value>
+  </property>
+</configuration>
+
+
+hdfs-site.xml
+
+<configuration>
+  <property>
+    <name>dfs.replication</name>
+    <value>1</value>
+  </property>
+</configuration> 
+
+Create HDFS file system
+
+sudo mkdir -p /hdfs/tmp
+sudo chown hduser:hadoop /hdfs/tmp
+sudo chmod 750 /hdfs/tmp
+hadoop namenode -format
+
+Start services
+
+su hduser
+
+Run:
+
+/opt/hadoop/bin/start-dfs.sh
+/opt/hadoop/bin/start-mapred.sh
+
+Run the jps command to checkl that all services started as supposed to:
+
+jps
+
+16640 JobTracker
+16832 Jps
+16307 NameNode
+16550 SecondaryNameNode
+16761 TaskTracker
+16426 DataNode
+
+Run sample test
+
+Upload sample files to HDFS (Feel free to grab any other textfile you like than license.txt):
+
+hadoop dfs -copyFromLocal /opt/hadoop/LICENSE.txt /license.txt
+
+Run wordcount example:
+
+hadoop jar /opt/hadoop/hadoop-examples-1.2.1.jar wordcount /license.txt /license-out.txt
+
+When completed you will see some statistics about the job. If you like to see the outputfile grab the file form HDFS to local file system:
+
+hadoop dfs -copyToLocal /license-out.txt ~/
+
+Open ~/license-out.txt/part-r-00000 
+
+in any text editor to see the result. (You should have all words in the license.txt file and their number of occurrences)
+
+Single node performance test
+
+For performance test I have put together a few sample files by concatenating textbooks from project gutenberg and run them in the same manner as the sample test above.
+
+Download sample text files for performance test
+su pi
+wget http://www.widriksson.com/wp-content/uploads/2014/10/hadoop_sample_txtfiles.tar.gz
+tar -zxvf hadoop_sample_txtfiles.tar.gz
+
+su hduser
+hadoop dfs -copyFromLocal mediumfile.txt /mediumfile.txt
+
+Run wordcount example:
+
+hadoop jar /opt/hadoop/hadoop-examples-1.2.1.jar wordcount /mediumfile.txt /mediumfile-out.txt
+
+2min45s for medium file with RPI2 vs 9min19s with RPI1 overclocked
+
+Open ~/mediumfile-out.txt/part-r-00000
+
+
+
+
+
