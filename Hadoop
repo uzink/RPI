@@ -196,7 +196,51 @@ hadoop jar /opt/hadoop/hadoop-examples-1.2.1.jar wordcount /mediumfile.txt /medi
 
 Open ~/mediumfile-out.txt/part-r-00000
 
+Prepare Node1 for cloning
 
+Edit configuration files
+
+/etc/hosts
+
+192.168.0.110 node1
+192.168.0.111 node2
+192.168.0.112 node3
+In a more serious setup you should use real DNS to setup name lookup, however to make it easy we will just go with the hosts file.
+
+/opt/hadoop/conf/masters
+
+node1
+
+Note: conf/masters file actually tells which node that is the Secondary NameNode. Node1 will become NameNode when we start the NameNode service on that machine.
+
+In /opt/hadoop/conf edit the following configuration files and change from localhost to node1:
+
+core-site.xml
+
+<configuration>
+  <property>
+    <name>hadoop.tmp.dir</name>
+    <value>/hdfs/tmp</value>
+  </property>
+  <property>
+    <name>fs.default.name</name>
+    <value>hdfs://node1:54310</value>
+  </property>
+</configuration>
+mapred-site.xml
+
+<configuration>
+  <property>
+    <name>mapred.job.tracker</name>
+    <value>node1:54311</value>
+  </property>
+</configuration>
+Wipe HDFS
+
+Note: In the next step we will completely wipte out the current hdfs storage – all files and data that you have used in hdfs will be lost. When you format the namenode there is also an issue causing the error message: Incompatible namespaceIDs in path/to/hdfs. This can happen when starting/doing file operations on the datanode after the namenode has been formatted. This issue is explained more in detail here.
+
+rm -rf /hdfs/tmp/*
+Later on we will format the namenode but we do this to ensure the hdfs filesystem is clean on all the nodes.
 
 
 
