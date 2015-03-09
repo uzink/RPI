@@ -4,12 +4,30 @@
 
 sudo vi /etc/network/interfaces
 
+auto lo
+
+iface lo inet loopback
 iface eth0 inet static
 address 192.168.0.110
 netmask 255.255.255.0
 gateway: 192.168.0.1
 
-sudo vi /etc/resolv.conf and ensure your namesservers (DNS) are configured properly.
+allow-hotplug wlan0
+iface wlan0 inet manual
+wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+iface default inet dhcp
+
+#check default gateway
+
+sudo route -n
+
+#gateway should be 192.168.0.1 if not
+
+sudo route add default gw 192.168.0.1
+
+#you can try to ping google to check the connexion
+
+sudo vi /etc/resolv.conf #and ensure your namesservers (DNS) are configured properly.
 
 #Restart the PI.
 
@@ -46,7 +64,7 @@ su pi
 #Download and install
 
 cd ~/
-wget http://apache.mirrors.spacedump.net/hadoop/core/hadoop-1.2.1/hadoop-1.2.1.tar.gz
+sudo wget http://apache.mirrors.spacedump.net/hadoop/core/hadoop-1.2.1/hadoop-1.2.1.tar.gz
 sudo mkdir /opt
 sudo tar -xvzf hadoop-1.2.1.tar.gz -C /opt/
 cd /opt
@@ -159,6 +177,8 @@ jps
 16550 SecondaryNameNode
 16761 TaskTracker
 16426 DataNode
+
+#if nameNode doess not start recreate file steps again
 
 #Run sample test
 
